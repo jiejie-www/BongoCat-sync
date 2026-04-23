@@ -21,6 +21,7 @@ import { useCatStore } from './stores/cat'
 import { useGeneralStore } from './stores/general'
 import { useModelStore } from './stores/model'
 import { useShortcutStore } from './stores/shortcut.ts'
+import { useSyncStore } from './stores/sync'
 
 const { generateColorVars } = useThemeVars()
 const appStore = useAppStore()
@@ -28,6 +29,7 @@ const modelStore = useModelStore()
 const catStore = useCatStore()
 const generalStore = useGeneralStore()
 const shortcutStore = useShortcutStore()
+const syncStore = useSyncStore()
 const appWindow = getCurrentWebviewWindow()
 const { isRestored, restoreState } = useWindowState()
 const { darkAlgorithm, defaultAlgorithm } = theme
@@ -45,6 +47,8 @@ onMounted(async () => {
   await generalStore.$tauri.start()
   await generalStore.init()
   await shortcutStore.$tauri.start()
+  await syncStore.$tauri.start()
+  syncStore.init()
   await restoreState()
 })
 
