@@ -35,21 +35,50 @@ jobs:
       - name: Build NSIS installer
         run: pnpm tauri build --bundles nsis
 
-      - name: List bundle outputs
+      - name: List release outputs
         shell: pwsh
         run: |
-          Write-Host "Bundle directory tree:"
-          if (Test-Path "src-tauri/target/release/bundle") {
-            Get-ChildItem "src-tauri/target/release/bundle" -Recurse | Select-Object FullName
+          Write-Host "Release directory tree:"
+          if (Test-Path "src-tauri/target/release") {
+            Get-ChildItem "src-tauri/target/release" -Recurse | Select-Object FullName
           }
           else {
-            Write-Host "src-tauri/target/release/bundle not found"
+            Write-Host "src-tauri/target/release not found"
           }
+
+      - name: Collect installer artifacts
+        shell: pwsh
+        run: |
+          $outDir = "ci-artifacts"
+          New-Item -ItemType Directory -Force -Path $outDir | Out-Null
+
+          $patterns = @("*.exe", "*.msi", "*.zip", "*.tar.gz", "*.sig", "latest.json")
+          $found = @()
+
+          foreach ($pattern in $patterns) {
+            $items = Get-ChildItem "src-tauri/target/release" -Recurse -File -Filter $pattern -ErrorAction SilentlyContinue
+            if ($items) {
+              $found += $items
+            }
+          }
+
+          $found = $found | Sort-Object FullName -Unique
+
+          if (-not $found -or $found.Count -eq 0) {
+            Write-Error "No build artifacts found under src-tauri/target/release"
+            exit 1
+          }
+
+          foreach ($item in $found) {
+            Copy-Item $item.FullName -Destination (Join-Path $outDir $item.Name) -Force
+          }
+
+          Write-Host "Collected artifacts:"
+          Get-ChildItem $outDir -File | Select-Object FullName, Length
 
       - name: Upload installer artifacts
         uses: actions/upload-artifact@v4
         with:
           name: BongoCat-sync-windows
-          path: |
-            src-tauri/target/release/bundle/**
+          path: ci-artifacts/**
           if-no-files-found: error
