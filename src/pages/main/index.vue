@@ -19,7 +19,7 @@ import { useModel } from '@/composables/useModel'
 import { useTauriListen } from '@/composables/useTauriListen'
 import { LISTEN_KEY } from '@/constants'
 import { hideWindow, setAlwaysOnTop, setTaskbarVisibility, showWindow } from '@/plugins/window'
-import { useRemotePressedKeys } from '@/state/remoteSyncRuntime'
+import { clearRemotePressedKeys, useRemotePressedKeys } from '@/state/remoteSyncRuntime'
 import { useCatStore } from '@/stores/cat'
 import { useGeneralStore } from '@/stores/general.ts'
 import { useModelStore } from '@/stores/model'
@@ -73,6 +73,7 @@ watch(() => modelStore.currentModel, async (model) => {
   backgroundImagePath.value = existed ? convertFileSrc(path) : void 0
 
   clearObject([modelStore.supportKeys, modelStore.pressedKeys])
+  clearRemotePressedKeys()
 
   const resourcePath = join(model.path, 'resources')
   const groups = ['left-keys', 'right-keys']
