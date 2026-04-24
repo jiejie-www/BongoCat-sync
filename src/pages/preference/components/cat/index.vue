@@ -1,12 +1,39 @@
 <script setup lang="ts">
-import { Divider, Flex, InputNumber, Slider, Switch } from 'ant-design-vue'
+import { computed } from 'vue'
+import { Divider, Flex, Input, InputNumber, Slider, Switch, Tag } from 'ant-design-vue'
 
 import ProListItem from '@/components/pro-list-item/index.vue'
 import ProList from '@/components/pro-list/index.vue'
 import { useCatStore } from '@/stores/cat'
+import { useSyncStore } from '@/stores/sync'
 import { isWindows } from '@/utils/platform'
 
 const catStore = useCatStore()
+const syncStore = useSyncStore()
+
+const syncStatusColor = computed(() => {
+  const colorMap = {
+    disconnected: 'default',
+    connecting: 'processing',
+    waiting: 'warning',
+    connected: 'success',
+    error: 'error',
+  } as const
+
+  return colorMap[syncStore.status]
+})
+
+const syncStatusText = computed(() => {
+  const textMap = {
+    disconnected: '未连接',
+    connecting: '连接中',
+    waiting: '等待对端',
+    connected: '已连接',
+    error: '连接异常',
+  } as const
+
+  return textMap[syncStore.status]
+})
 </script>
 
 <template>
@@ -67,6 +94,60 @@ const catStore = useCatStore()
         class="w-20"
         :min="0"
       />
+    </ProListItem>
+  </ProList>
+
+  <ProList title="双端同步">
+    <ProListItem
+      description="启用后，会把当前猫猫的键盘/鼠标动作通过 WebSocket 中继同步给同一房间的另一端。只同步动作，不同步真实文本内容。"
+      title="启用同步"
+    >
+      <Switch v-model:checked="syncStore.enabled" />
+    </ProListItem>
+
+    <ProListItem
+      description="填写中继服务器地址。局域网测试时可用 ws://你的IP:4399。"
+      title="服务器地址"
+    >
+      <Input
+        v-model:value="syncStore.serverUrl"
+        class="w-80"
+        placeholder="ws://127.0.0.1:4399"
+      />
+    </ProListItem>
+
+    <ProListItem
+      description="双方填写同一个房间号即可配对。"
+      title="房间号"
+    >
+      <Input
+        v-model:value="syncStore.roomId"
+        class="w-60"
+        placeholder="room-001"
+      />
+    </ProListItem>
+
+    <ProListItem title="本机标识">
+      <Input
+        v-model:value="syncStore.peerId"
+        class="w-60"
+      />
+    </ProListItem>
+
+    <ProListItem title="连接状态">
+      <Tag :color="syncStatusColor">
+        {{ syncStatusText }}
+      </Tag>
+    </ProListItem>
+
+    <ProListItem
+      v-if="syncStore.lastError"
+      title="最近错误"
+      vertical
+    >
+      <div class="max-w-120 break-all text-xs text-red-500">
+        {{ syncStore.lastError }}
+      </div>
     </ProListItem>
   </ProList>
 
