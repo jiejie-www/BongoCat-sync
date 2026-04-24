@@ -10,15 +10,16 @@ import { exists, readDir } from '@tauri-apps/plugin-fs'
 import { useDebounceFn, useEventListener } from '@vueuse/core'
 import { round } from 'es-toolkit'
 import { nth } from 'es-toolkit/compat'
-import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
 import { useAppMenu } from '@/composables/useAppMenu'
-import { useDevice } from '@/composables/useDevice'
+import { useDeviceSync } from '@/composables/useDeviceSync'
 import { useGamepad } from '@/composables/useGamepad'
 import { useModel } from '@/composables/useModel'
 import { useTauriListen } from '@/composables/useTauriListen'
 import { LISTEN_KEY } from '@/constants'
 import { hideWindow, setAlwaysOnTop, setTaskbarVisibility, showWindow } from '@/plugins/window'
+import { useRemotePressedKeys } from '@/state/remoteSyncRuntime'
 import { useCatStore } from '@/stores/cat'
 import { useGeneralStore } from '@/stores/general.ts'
 import { useModelStore } from '@/stores/model'
@@ -28,16 +29,21 @@ import { join } from '@/utils/path'
 import { isWindows } from '@/utils/platform'
 import { clearObject } from '@/utils/shared'
 
-const { startListening } = useDevice()
+const { startListening } = useDeviceSync()
 const appWindow = getCurrentWebviewWindow()
 const { modelSize, handleLoad, handleDestroy, handleResize, handleKeyChange } = useModel()
 const catStore = useCatStore()
 const { getBaseMenu, getExitMenu } = useAppMenu()
 const modelStore = useModelStore()
 const generalStore = useGeneralStore()
+const remotePressedKeys = useRemotePressedKeys()
 const resizing = ref(false)
 const backgroundImagePath = ref<string>()
 const { stickActive } = useGamepad()
+
+const pressedKeyPaths = computed(() => {
+  return [...Object.values(modelStore.pressedKeys), ...Object.values(remotePressedKeys)]
+})
 
 onMounted(startListening)
 
@@ -99,8 +105,8 @@ watch([() => catStore.window.scale, modelSize], async ([scale, modelSize]) => {
   )
 }, { immediate: true })
 
-watch([modelStore.pressedKeys, stickActive], ([keys, stickActive]) => {
-  const dirs = Object.values(keys).map((path) => {
+watch([pressedKeyPaths, stickActive], ([paths, stickActive]) => {
+  const dirs = paths.map((path) => {
     return nth(path.split(sep()), -2)!
   })
 
@@ -152,14 +158,12 @@ async function handleContextmenu(event: MouseEvent) {
     ],
   })
 
-  // Temporarily disable always-on-top on Windows so the context menu is not covered
   if (isWindows && catStore.window.alwaysOnTop) {
     setAlwaysOnTop(false)
   }
 
   await menu.popup()
 
-  // Restore always-on-top after the menu is closed
   if (!isWindows || !catStore.window.alwaysOnTop) return
 
   setAlwaysOnTop(true)
@@ -198,7 +202,7 @@ function handleMouseMove(event: MouseEvent) {
     <canvas id="live2dCanvas" />
 
     <img
-      v-for="path in modelStore.pressedKeys"
+      v-for="path in pressedKeyPaths"
       :key="path"
       class="object-cover"
       :src="convertFileSrc(path)"
